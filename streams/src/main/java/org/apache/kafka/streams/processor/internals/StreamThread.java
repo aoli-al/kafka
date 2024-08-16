@@ -258,6 +258,13 @@ public class StreamThread extends Thread implements ProcessingThread {
             stateLock.notifyAll();
         }
 
+        try {
+            if (state == State.PENDING_SHUTDOWN) {
+                Thread.sleep(1000);
+            }
+        } catch (final Exception e) {
+            throw new RuntimeException(e);
+        }
         if (stateListener != null) {
             stateListener.onChange(this, state, oldState);
         }
@@ -661,6 +668,11 @@ public class StreamThread extends Thread implements ProcessingThread {
     @Override
     public void run() {
         log.info("Starting");
+        try {
+            Thread.sleep(1000);
+        } catch (final Exception e) {
+            throw new RuntimeException(e);
+        }
         if (setState(State.STARTING) == null) {
             log.info("StreamThread already shutdown. Not running");
             return;
