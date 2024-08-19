@@ -115,7 +115,12 @@ public class DefaultTaskExecutor implements TaskExecutor {
             handleTaskReleaseRequested();
 
             if (currentTask == null) {
-                currentTask = taskManager.assignNextTask(DefaultTaskExecutor.this);
+                final StreamTask task = taskManager.assignNextTask(DefaultTaskExecutor.this);
+                try {
+                    Thread.sleep(1);
+                } catch (final Exception e) {
+                }
+                currentTask = task;
             }
 
             if (currentTask == null) {
