@@ -1527,6 +1527,7 @@ public class KafkaStreams implements AutoCloseable {
             if (!error) {
                 setState(State.NOT_RUNNING);
             } else {
+                Utils.sleep(1000);
                 setState(State.ERROR);
             }
         }, clientId + "-CloseThread");
@@ -1537,6 +1538,8 @@ public class KafkaStreams implements AutoCloseable {
             log.info("Streams client is already in the terminal {} state, all resources are closed and the client has stopped.", state);
             return true;
         }
+
+        Utils.sleep(2000);
         if (state.isShuttingDown()) {
             log.info("Streams client is in {}, all resources are being closed and the client will be stopped.", state);
             if (state == State.PENDING_ERROR && waitOnState(State.ERROR, timeoutMs)) {
