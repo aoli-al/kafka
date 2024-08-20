@@ -458,6 +458,7 @@ public class GlobalStreamThread extends Thread {
             if (startupException != null) {
                 throw startupException;
             }
+            Utils.sleep(1000);
         }
 
         if (inErrorState()) {
