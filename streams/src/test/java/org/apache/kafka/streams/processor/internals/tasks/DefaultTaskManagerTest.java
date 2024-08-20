@@ -115,6 +115,10 @@ public class DefaultTaskManagerTest {
         public void run() {
             while (!shutdownRequested.get()) {
                 try {
+                    Thread.sleep(1000);
+                } catch (final Exception e) {
+                }
+                try {
                     taskManager.awaitProcessableTasks();
                 } catch (final InterruptedException ignored) {
                 }
@@ -151,6 +155,8 @@ public class DefaultTaskManagerTest {
         assertTrue(awaitingRunnable.awaitDone.await(VERIFICATION_TIMEOUT, TimeUnit.MILLISECONDS));
 
         awaitingRunnable.shutdown();
+        Thread.sleep(5000);
+        assertFalse(awaitingThread.isAlive());
     }
 
     @Test
