@@ -21,6 +21,7 @@ import org.apache.kafka.common.errors.TimeoutException;
 import org.apache.kafka.common.internals.KafkaFutureImpl;
 import org.apache.kafka.common.utils.LogContext;
 import org.apache.kafka.common.utils.Time;
+import org.apache.kafka.common.utils.Utils;
 import org.apache.kafka.streams.errors.StreamsException;
 import org.apache.kafka.streams.errors.TaskMigratedException;
 import org.apache.kafka.streams.processor.internals.ProcessingThread;
@@ -208,6 +209,7 @@ public class DefaultTaskExecutor implements TaskExecutor {
                 }
             }
             taskManager.unassignTask(currentTask, DefaultTaskExecutor.this);
+            Utils.sleep(100);
 
             final StreamTask retTask = currentTask;
             currentTask = null;
