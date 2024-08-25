@@ -337,6 +337,7 @@ public class StreamThreadTest {
         int numChanges = 0;
         ThreadStateTransitionValidator oldState = null;
         ThreadStateTransitionValidator newState = null;
+        public boolean stateMismatch = false;
 
         @Override
         public void onChange(final Thread thread,
@@ -345,6 +346,7 @@ public class StreamThreadTest {
             ++numChanges;
             if (this.newState != null) {
                 if (!this.newState.equals(oldState)) {
+                    stateMismatch = true;
                     throw new RuntimeException("State mismatch " + oldState + " different from " + this.newState);
                 }
             }
@@ -412,6 +414,7 @@ public class StreamThreadTest {
 
         thread.shutdown();
         assertEquals(thread.state(), StreamThread.State.DEAD);
+        assertFalse(stateListener.stateMismatch);
     }
 
     @ParameterizedTest
