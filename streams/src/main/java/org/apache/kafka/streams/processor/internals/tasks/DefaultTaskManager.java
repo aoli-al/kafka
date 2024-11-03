@@ -37,6 +37,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentSkipListSet;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -142,7 +143,7 @@ public final class DefaultTaskManager implements TaskManager {
                 // is called during shutdown. If this happens, we end up blocking in the await forever.
                 if (!isShuttingDown.get()) {
                     log.debug("Await blocking");
-                    tasksCondition.await();
+                    final boolean ignored = tasksCondition.await(1, TimeUnit.MICROSECONDS);
                 } else {
                     log.debug("Not awaiting since shutdown was requested");
                 }
