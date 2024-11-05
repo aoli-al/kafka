@@ -499,6 +499,7 @@ public class DefaultStateUpdater implements StateUpdater {
                 } else {
                     log.info("Standby task " + taskId + " was added to the state updater");
                     if (updatingTasks.size() == 1) {
+                        Utils.sleep(1000);
                         changelogReader.transitToUpdateStandby();
                     }
                 }
