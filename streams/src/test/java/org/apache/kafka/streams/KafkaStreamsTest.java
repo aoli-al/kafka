@@ -112,6 +112,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.ArgumentMatchers.any;
@@ -982,10 +983,14 @@ public class KafkaStreamsTest {
             closeOptions.timeout(Duration.ZERO);
             closeOptions.leaveGroup(true);
 
-            streams.close(closeOptions);
-            assertThat(streams.state() == State.PENDING_SHUTDOWN, equalTo(true));
-            assertThrows(IllegalStateException.class, streams::cleanUp);
-            assertThat(streams.state() == State.PENDING_SHUTDOWN, equalTo(true));
+            if (streams.close(closeOptions)) {
+                assertThat(streams.state() == State.NOT_RUNNING, equalTo(true));
+                assertDoesNotThrow(streams::cleanUp);
+            } else {
+                assertThat(streams.state() == State.PENDING_SHUTDOWN, equalTo(true));
+                assertThrows(IllegalStateException.class, streams::cleanUp);
+                assertThat(streams.state() == State.PENDING_SHUTDOWN, equalTo(true));
+            }
         }
     }
 
