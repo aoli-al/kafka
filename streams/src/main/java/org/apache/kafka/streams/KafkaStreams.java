@@ -1573,6 +1573,7 @@ public class KafkaStreams implements AutoCloseable {
             shutdownThread.setDaemon(true);
             shutdownThread.start();
         }
+        Utils.sleep(3000);
 
         if (waitOnState(State.NOT_RUNNING, timeoutMs)) {
             log.info("Streams client stopped completely");
