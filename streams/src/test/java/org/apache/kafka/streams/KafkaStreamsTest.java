@@ -146,7 +146,7 @@ public class KafkaStreamsTest {
     private Properties props;
     private MockAdminClient adminClient;
     private StateListenerStub streamsStateListener;
-    
+
     @Mock
     private StreamThread streamThreadOne;
     @Mock
@@ -352,6 +352,40 @@ public class KafkaStreamsTest {
             terminableThreadBlockingLatch.await();
             return null;
         }).when(thread).join();
+    }
+
+    private class KafkaStreamsWithTerminableThread extends KafkaStreams {
+
+        KafkaStreamsWithTerminableThread(final Topology topology,
+                                         final Properties props,
+                                         final KafkaClientSupplier clientSupplier,
+                                         final Time time) {
+            super(topology, props, clientSupplier, time);
+        }
+
+
+        KafkaStreamsWithTerminableThread(final Topology topology,
+                                         final Properties props,
+                                         final KafkaClientSupplier clientSupplier) {
+            super(topology, props, clientSupplier);
+        }
+
+        KafkaStreamsWithTerminableThread(final Topology topology,
+                                         final StreamsConfig applicationConfigs) {
+            super(topology, applicationConfigs);
+        }
+
+        KafkaStreamsWithTerminableThread(final Topology topology,
+                                         final StreamsConfig applicationConfigs,
+                                         final KafkaClientSupplier clientSupplier) {
+            super(topology, applicationConfigs, clientSupplier);
+        }
+
+        @Override
+        public void close() {
+            terminableThreadBlockingLatch.countDown();
+            super.close();
+        }
     }
 
     @Test
@@ -950,7 +984,7 @@ public class KafkaStreamsTest {
         prepareThreadState(streamThreadOne, state1);
         prepareThreadState(streamThreadTwo, state2);
         prepareTerminableThread(streamThreadOne);
-        try (final KafkaStreams streams = new KafkaStreams(getBuilderWithSource().build(), props, supplier, time)) {
+        try (final KafkaStreams streams = new KafkaStreamsWithTerminableThread(getBuilderWithSource().build(), props, supplier, time)) {
             streams.start();
             waitForCondition(
                 () -> streams.state() == KafkaStreams.State.RUNNING,
@@ -960,7 +994,6 @@ public class KafkaStreamsTest {
             assertThat(streams.state() == State.PENDING_SHUTDOWN, equalTo(true));
             assertThrows(IllegalStateException.class, streams::cleanUp);
             assertThat(streams.state() == State.PENDING_SHUTDOWN, equalTo(true));
-            terminableThreadBlockingLatch.countDown();
         }
     }
 
@@ -976,7 +1009,7 @@ public class KafkaStreamsTest {
 
         when(mockClientSupplier.getAdmin(any())).thenReturn(adminClient);
 
-        try (final KafkaStreams streams = new KafkaStreams(getBuilderWithSource().build(), props, mockClientSupplier, time)) {
+        try (final KafkaStreams streams = new KafkaStreamsWithTerminableThread(getBuilderWithSource().build(), props, mockClientSupplier, time)) {
             streams.start();
             waitForCondition(
                 () -> streams.state() == KafkaStreams.State.RUNNING,
@@ -990,7 +1023,6 @@ public class KafkaStreamsTest {
             assertThat(streams.state() == State.PENDING_SHUTDOWN, equalTo(true));
             assertThrows(IllegalStateException.class, streams::cleanUp);
             assertThat(streams.state() == State.PENDING_SHUTDOWN, equalTo(true));
-            terminableThreadBlockingLatch.countDown();
         }
     }
 
@@ -1002,7 +1034,7 @@ public class KafkaStreamsTest {
         prepareThreadState(streamThreadOne, state1);
         prepareThreadState(streamThreadTwo, state2);
         prepareTerminableThread(streamThreadOne);
-        try (final KafkaStreams streams = new KafkaStreams(getBuilderWithSource().build(), props, supplier, time)) {
+        try (final KafkaStreams streams = new KafkaStreamsWithTerminableThread(getBuilderWithSource().build(), props, supplier, time)) {
             streams.start();
             waitForCondition(
                 () -> streams.state() == KafkaStreams.State.RUNNING,
@@ -1015,7 +1047,6 @@ public class KafkaStreamsTest {
             assertThat(streams.state() == State.PENDING_SHUTDOWN, equalTo(true));
             assertThrows(IllegalStateException.class, streams::cleanUp);
             assertThat(streams.state() == State.PENDING_SHUTDOWN, equalTo(true));
-            terminableThreadBlockingLatch.countDown();
         }
     }
 
@@ -1160,9 +1191,8 @@ public class KafkaStreamsTest {
         prepareTerminableThread(streamThreadOne);
 
         // do not use mock time so that it can really elapse
-        try (final KafkaStreams streams = new KafkaStreams(getBuilderWithSource().build(), props, supplier)) {
+        try (final KafkaStreams streams = new KafkaStreamsWithTerminableThread(getBuilderWithSource().build(), props, supplier)) {
             assertFalse(streams.close(Duration.ofMillis(10L)));
-            terminableThreadBlockingLatch.countDown();
         }
     }
 
@@ -1173,9 +1203,8 @@ public class KafkaStreamsTest {
         prepareStreamThread(streamThreadTwo, 2);
         prepareTerminableThread(streamThreadOne);
 
-        try (final KafkaStreams streams = new KafkaStreams(getBuilderWithSource().build(), props, supplier, time)) {
+        try (final KafkaStreams streams = new KafkaStreamsWithTerminableThread(getBuilderWithSource().build(), props, supplier, time)) {
             assertThrows(IllegalArgumentException.class, () -> streams.close(Duration.ofMillis(-1L)));
-            terminableThreadBlockingLatch.countDown();
         }
     }
 
@@ -1186,10 +1215,9 @@ public class KafkaStreamsTest {
         prepareStreamThread(streamThreadTwo, 2);
         prepareTerminableThread(streamThreadOne);
 
-        try (final KafkaStreams streams = new KafkaStreams(getBuilderWithSource().build(), props, supplier, time)) {
+        try (final KafkaStreams streams = new KafkaStreamsWithTerminableThread(getBuilderWithSource().build(), props, supplier, time)) {
             // with mock time that does not elapse, close would not return if it ever waits on the state transition
             assertFalse(streams.close(Duration.ZERO));
-            terminableThreadBlockingLatch.countDown();
         }
     }
 
@@ -1202,9 +1230,8 @@ public class KafkaStreamsTest {
 
         final KafkaStreams.CloseOptions closeOptions = new KafkaStreams.CloseOptions();
         closeOptions.timeout(Duration.ofMillis(10L));
-        try (final KafkaStreams streams = new KafkaStreams(getBuilderWithSource().build(), props, supplier)) {
+        try (final KafkaStreams streams = new KafkaStreamsWithTerminableThread(getBuilderWithSource().build(), props, supplier)) {
             assertFalse(streams.close(closeOptions));
-            terminableThreadBlockingLatch.countDown();
         }
     }
 
@@ -1217,9 +1244,8 @@ public class KafkaStreamsTest {
 
         final KafkaStreams.CloseOptions closeOptions = new KafkaStreams.CloseOptions();
         closeOptions.timeout(Duration.ofMillis(-1L));
-        try (final KafkaStreams streams = new KafkaStreams(getBuilderWithSource().build(), props, supplier, time)) {
+        try (final KafkaStreams streams = new KafkaStreamsWithTerminableThread(getBuilderWithSource().build(), props, supplier, time)) {
             assertThrows(IllegalArgumentException.class, () -> streams.close(closeOptions));
-            terminableThreadBlockingLatch.countDown();
         }
     }
 
@@ -1232,9 +1258,8 @@ public class KafkaStreamsTest {
 
         final KafkaStreams.CloseOptions closeOptions = new KafkaStreams.CloseOptions();
         closeOptions.timeout(Duration.ZERO);
-        try (final KafkaStreams streams = new KafkaStreams(getBuilderWithSource().build(), props, supplier)) {
+        try (final KafkaStreams streams = new KafkaStreamsWithTerminableThread(getBuilderWithSource().build(), props, supplier)) {
             assertFalse(streams.close(closeOptions));
-            terminableThreadBlockingLatch.countDown();
         }
     }
 
@@ -1252,9 +1277,8 @@ public class KafkaStreamsTest {
         final KafkaStreams.CloseOptions closeOptions = new KafkaStreams.CloseOptions();
         closeOptions.timeout(Duration.ofMillis(10L));
         closeOptions.leaveGroup(true);
-        try (final KafkaStreams streams = new KafkaStreams(getBuilderWithSource().build(), props, mockClientSupplier)) {
+        try (final KafkaStreams streams = new KafkaStreamsWithTerminableThread(getBuilderWithSource().build(), props, mockClientSupplier)) {
             assertFalse(streams.close(closeOptions));
-            terminableThreadBlockingLatch.countDown();
         }
     }
 
@@ -1271,9 +1295,8 @@ public class KafkaStreamsTest {
         final KafkaStreams.CloseOptions closeOptions = new KafkaStreams.CloseOptions();
         closeOptions.timeout(Duration.ofMillis(-1L));
         closeOptions.leaveGroup(true);
-        try (final KafkaStreams streams = new KafkaStreams(getBuilderWithSource().build(), props, mockClientSupplier, time)) {
+        try (final KafkaStreams streams = new KafkaStreamsWithTerminableThread(getBuilderWithSource().build(), props, mockClientSupplier, time)) {
             assertThrows(IllegalArgumentException.class, () -> streams.close(closeOptions));
-            terminableThreadBlockingLatch.countDown();
         }
     }
 
@@ -1291,9 +1314,8 @@ public class KafkaStreamsTest {
         final KafkaStreams.CloseOptions closeOptions = new KafkaStreams.CloseOptions();
         closeOptions.timeout(Duration.ZERO);
         closeOptions.leaveGroup(true);
-        try (final KafkaStreams streams = new KafkaStreams(getBuilderWithSource().build(), props, mockClientSupplier)) {
+        try (final KafkaStreams streams = new KafkaStreamsWithTerminableThread(getBuilderWithSource().build(), props, mockClientSupplier)) {
             assertFalse(streams.close(closeOptions));
-            terminableThreadBlockingLatch.countDown();
         }
     }
 
@@ -1315,9 +1337,8 @@ public class KafkaStreamsTest {
             builder.table("topic", Materialized.as("store"));
             props.setProperty(StreamsConfig.METRICS_RECORDING_LEVEL_CONFIG, RecordingLevel.DEBUG.name());
 
-            try (final KafkaStreams streams = new KafkaStreams(getBuilderWithSource().build(), props, supplier, time)) {
+            try (final KafkaStreams streams = new KafkaStreamsWithTerminableThread(getBuilderWithSource().build(), props, supplier, time)) {
                 streams.start();
-                terminableThreadBlockingLatch.countDown();
             }
 
             executorsMockedStatic.verify(() -> Executors.newSingleThreadScheduledExecutor(any(ThreadFactory.class)),
@@ -1340,8 +1361,7 @@ public class KafkaStreamsTest {
         final StreamsConfig mockConfig = spy(config);
         when(mockConfig.getKafkaClientSupplier()).thenReturn(supplier);
 
-        try (final KafkaStreams ignored = new KafkaStreams(getBuilderWithSource().build(), mockConfig)) {
-            terminableThreadBlockingLatch.countDown();
+        try (final KafkaStreams ignored = new KafkaStreamsWithTerminableThread(getBuilderWithSource().build(), mockConfig)) {
         }
         // It's called once in above when mock
         verify(mockConfig, times(2)).getKafkaClientSupplier();
@@ -1377,8 +1397,7 @@ public class KafkaStreamsTest {
         final StreamsConfig config = new StreamsConfig(props);
         final StreamsConfig mockConfig = spy(config);
 
-        try (final KafkaStreams ignored = new KafkaStreams(getBuilderWithSource().build(), mockConfig, supplier)) {
-            terminableThreadBlockingLatch.countDown();
+        try (final KafkaStreams ignored = new KafkaStreamsWithTerminableThread(getBuilderWithSource().build(), mockConfig, supplier)) {
         }
         // It's called once in above when mock
         verify(mockConfig, times(0)).getKafkaClientSupplier();
