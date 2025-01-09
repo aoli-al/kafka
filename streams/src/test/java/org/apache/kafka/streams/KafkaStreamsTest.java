@@ -1362,6 +1362,7 @@ public class KafkaStreamsTest {
         when(mockConfig.getKafkaClientSupplier()).thenReturn(supplier);
 
         try (final KafkaStreams ignored = new KafkaStreamsWithTerminableThread(getBuilderWithSource().build(), mockConfig)) {
+            // no-op
         }
         // It's called once in above when mock
         verify(mockConfig, times(2)).getKafkaClientSupplier();
@@ -1398,6 +1399,7 @@ public class KafkaStreamsTest {
         final StreamsConfig mockConfig = spy(config);
 
         try (final KafkaStreams ignored = new KafkaStreamsWithTerminableThread(getBuilderWithSource().build(), mockConfig, supplier)) {
+            // no-op
         }
         // It's called once in above when mock
         verify(mockConfig, times(0)).getKafkaClientSupplier();
