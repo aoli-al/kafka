@@ -349,7 +349,7 @@ public class DefaultTaskManager implements TaskManager {
 
     private <T> T returnWithTasksLocked(final Supplier<T> action) {
         try {
-            Thread.sleep(1000);
+            Thread.sleep(10000);
         } catch (final Exception e) {
         }
         tasksLock.lock();
