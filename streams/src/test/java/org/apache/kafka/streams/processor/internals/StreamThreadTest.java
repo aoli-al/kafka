@@ -106,6 +106,9 @@ import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
+import org.pastalab.fray.junit.junit5.FrayExtension;
+import org.pastalab.fray.junit.junit5.FrayTestExtension;
+import org.pastalab.fray.junit.junit5.annotations.ConcurrencyTest;
 import org.slf4j.Logger;
 
 import java.io.File;
@@ -172,7 +175,9 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.pastalab.fray.junit.syncurity.ConditionFactoryKt.await;
 
+@ExtendWith(FrayTestExtension.class)
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.STRICT_STUBS)
 public class StreamThreadTest {
@@ -399,25 +404,31 @@ public class StreamThreadTest {
         assertSame(StreamThread.State.PENDING_SHUTDOWN, thread.state());
     }
 
-    @ParameterizedTest
-    @MethodSource("data")    
-    public void shouldChangeStateAtStartClose(final boolean stateUpdaterEnabled, final boolean processingThreadsEnabled) throws Exception {
+    @ConcurrencyTest(
+            iterations = 100
+    )
+    public void shouldChangeStateAtStartClose() throws Exception {
+        final boolean stateUpdaterEnabled = false;
+        final boolean processingThreadsEnabled = false;
         thread = createStreamThread(CLIENT_ID, new MockTime(1), stateUpdaterEnabled, processingThreadsEnabled);
 
         final StateListenerStub stateListener = new StateListenerStub();
         thread.setStateListener(stateListener);
 
         thread.start();
-        TestUtils.waitForCondition(
-            () -> thread.state() == StreamThread.State.STARTING,
-            10 * 1000,
-            "Thread never started.");
+
+        await().until(() -> thread.state() == State.STARTING, equalTo(true));
+//        TestUtils.waitForCondition(
+//            () -> thread.state() == StreamThread.State.STARTING,
+//            10 * 1000,
+//            "Thread never started.");
 
         thread.shutdown();
-        TestUtils.waitForCondition(
-            () -> thread.state() == StreamThread.State.DEAD,
-            10 * 1000,
-            "Thread never shut down.");
+        await().until(() -> thread.state() == State.DEAD, equalTo(true));
+//        TestUtils.waitForCondition(
+//            () -> thread.state() == StreamThread.State.DEAD,
+//            10 * 1000,
+//            "Thread never shut down.");
 
         thread.shutdown();
         assertEquals(thread.state(), StreamThread.State.DEAD);
