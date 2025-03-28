@@ -94,8 +94,10 @@ import org.apache.kafka.test.StreamsTestUtils;
 import org.apache.kafka.test.TestCondition;
 import org.apache.kafka.test.TestUtils;
 
+import org.jetbrains.lincheck.Lincheck;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -106,6 +108,8 @@ import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
+import org.pastalab.fray.junit.junit5.FrayTestExtension;
+import org.pastalab.fray.junit.junit5.annotations.ConcurrencyTest;
 import org.slf4j.Logger;
 
 import java.io.File;
@@ -172,10 +176,15 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.pastalab.fray.junit.ranger.ConditionFactoryKt.await;
 
+@ExtendWith(FrayTestExtension.class)
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.STRICT_STUBS)
 public class StreamThreadTest {
+    static {
+        System.setProperty("net.bytebuddy.experimental", "true");
+    }
 
     private static final String APPLICATION_ID = "stream-thread-test";
     private static final UUID PROCESS_ID = UUID.fromString("87bf53a8-54f2-485f-a4b6-acdbec0a8b3d");
@@ -400,7 +409,7 @@ public class StreamThreadTest {
     }
 
     @ParameterizedTest
-    @MethodSource("data")    
+    @MethodSource("data")
     public void shouldChangeStateAtStartClose(final boolean stateUpdaterEnabled, final boolean processingThreadsEnabled) throws Exception {
         thread = createStreamThread(CLIENT_ID, new MockTime(1), stateUpdaterEnabled, processingThreadsEnabled);
 
@@ -408,6 +417,7 @@ public class StreamThreadTest {
         thread.setStateListener(stateListener);
 
         thread.start();
+
         TestUtils.waitForCondition(
             () -> thread.state() == StreamThread.State.STARTING,
             10 * 1000,
@@ -418,6 +428,62 @@ public class StreamThreadTest {
             () -> thread.state() == StreamThread.State.DEAD,
             10 * 1000,
             "Thread never shut down.");
+
+        thread.shutdown();
+        assertEquals(thread.state(), StreamThread.State.DEAD);
+    }
+
+    @Test
+    public void shouldChangeStateAtStartCloseWithLincheck() throws Exception {
+        Lincheck.runConcurrentTest(() -> {
+            final boolean stateUpdaterEnabled = false;
+            final boolean processingThreadsEnabled = false;
+            thread = createStreamThread(CLIENT_ID, new MockTime(1), stateUpdaterEnabled, processingThreadsEnabled);
+
+            final StateListenerStub stateListener = new StateListenerStub();
+            thread.setStateListener(stateListener);
+
+            thread.start();
+
+            try {
+                TestUtils.waitForCondition(
+                        () -> thread.state() == State.STARTING,
+                        10 * 1000,
+                        "Thread never started.");
+            } catch (final InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+
+            thread.shutdown();
+            try {
+                TestUtils.waitForCondition(
+                        () -> thread.state() == State.DEAD,
+                        10 * 1000,
+                        "Thread never shut down.");
+            } catch (final InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+
+            thread.shutdown();
+            assertEquals(thread.state(), StreamThread.State.DEAD);
+        });
+    }
+
+    @ConcurrencyTest(
+            iterations = 100
+    )
+    public void shouldChangeStateAtStartCloseWithFray() throws Exception {
+        final boolean stateUpdaterEnabled = false;
+        final boolean processingThreadsEnabled = false;
+        thread = createStreamThread(CLIENT_ID, new MockTime(1), stateUpdaterEnabled, processingThreadsEnabled);
+
+        final StateListenerStub stateListener = new StateListenerStub();
+        thread.setStateListener(stateListener);
+
+        thread.start();
+        await().until(() -> thread.state() == State.STARTING, equalTo(true));
+        thread.shutdown();
+        await().until(() -> thread.state() == State.DEAD, equalTo(true));
 
         thread.shutdown();
         assertEquals(thread.state(), StreamThread.State.DEAD);
